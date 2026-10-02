@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "profile": "alberto-portable",
+  "status": "exploratory",
+  "version": "0.1",
+  "generated_at": "2026-10-03",
+  "rules": {
+    "inference_is_not_fact": true,
+    "preserve_temporal_history": true,
+    "separate_style_from_decision_model": true,
+    "require_evidence_for_high_confidence_traits": true
+  },
+  "candidate_traits": [
+    {
+      "id": "protect_core_before_optimization",
+      "confidence": 0.90,
+      "status": "candidate"
+    },
+    {
+      "id": "prefer_verifiable_state",
+      "confidence": 0.92,
+      "status": "candidate"
+    },
+    {
+      "id": "continuity_over_architectural_purity",
+      "confidence": 0.88,
+      "status": "candidate"
+    },
+    {
+      "id": "reduce_future_recovery_cost",
+      "confidence": 0.87,
+      "status": "candidate"
+    },
+    {
+      "id": "preserve_spontaneity",
+      "confidence": 0.95,
+      "status": "candidate"
+    }
+  ],
+  "next_validation": {
+    "method": "novel_scenarios",
+    "source": "eval/SCENARIOS.md",
+    "goal": "measure whether the decision model predicts Alberto better than style imitation alone"
+  }
+}
