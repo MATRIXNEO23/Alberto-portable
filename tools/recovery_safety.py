@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,12 @@ CLEAR = "CLEAR"
 CORRECTION_APPLIES = "CORRECTION_APPLIES"
 CONFLICTING = "CONFLICTING"
 NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
+
+_GENERIC_EXPERIENCE_KEYS = {"task_type", "project"}
+_STRUCTURE_CODE_PATHS = (
+    "tools/recovery_safety.py",
+    "tools/validate_repository.py",
+)
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -91,6 +98,10 @@ def all_experiences(manifest: dict | None = None) -> list[dict]:
     return _load_source_group(manifest, "experience_sources")
 
 
+def _experience_context_keys(reuse_when: dict) -> list[str]:
+    return sorted(key for key in reuse_when if key not in _GENERIC_EXPERIENCE_KEYS)
+
+
 def source_integrity(manifest: dict | None = None) -> dict:
     manifest = manifest or load_manifest()
     errors: list[str] = []
@@ -109,6 +120,15 @@ def source_integrity(manifest: dict | None = None) -> dict:
                 rows = load_source(source)
                 if group != "experience_sources":
                     criterion_rows.extend(rows)
+                else:
+                    for index, row in enumerate(rows, 1):
+                        if row.get("verified") is not True:
+                            continue
+                        reuse_when = row.get("reuse_when") or {}
+                        if not _experience_context_keys(reuse_when):
+                            errors.append(
+                                f"{source.get('path')}:{index} verified experience requires at least one contextual reuse anchor beyond task_type/project"
+                            )
             except (ValueError, json.JSONDecodeError) as exc:
                 errors.append(str(exc))
 
@@ -161,14 +181,6 @@ def _case_value(case: dict, name: str):
 
 
 def _has_relevance_anchor(case: dict, cfg: dict) -> bool:
-    """Return True when a criterion has enough case evidence to justify asking.
-
-    Empty-feature cases remain fail-closed because the objective is genuinely
-    indeterminate. Once a case contains concrete features, a criterion may ask
-    for missing required fields only if at least one of its own applicability
-    fields is already present. This prevents unrelated criteria from creating
-    false NEEDS_CLARIFICATION results.
-    """
     features = case.get("features") or {}
     if not features:
         return True
@@ -216,8 +228,6 @@ def evaluate_applicability(case: dict, criterion: dict) -> dict:
             "generality": criterion.get("generality", "contextual"),
         }
 
-    # A concrete case that contains none of this criterion's applicability
-    # fields is evidence of non-relevance, not a reason to interrogate Alberto.
     if missing and not relevance_anchor:
         return {
             "criterion_id": criterion.get("criterion_id"),
@@ -274,7 +284,8 @@ def recover_experiences(case: dict, rows: list[dict] | None = None) -> list[dict
         if row.get("verified") is not True:
             continue
         reuse_when = row.get("reuse_when") or {}
-        if not reuse_when:
+        context_keys = _experience_context_keys(reuse_when)
+        if not context_keys:
             continue
         if not all(_case_value(case, key) == expected for key, expected in reuse_when.items()):
             continue
@@ -286,19 +297,57 @@ def recover_experiences(case: dict, rows: list[dict] | None = None) -> list[dict
             "failure_mode": row.get("failure_mode"),
             "lesson": row.get("lesson"),
             "reuse_when": reuse_when,
+            "specificity": len(reuse_when),
+            "contextual_anchors": context_keys,
             "provenance": row.get("evidence_refs", []),
             "generality": row.get("generality", "contextual"),
         })
+    matches.sort(key=lambda row: (-row["specificity"], str(row.get("experience_id"))))
     return matches
 
 
-def instance_audit_status(instance_id: str | None, rows: list[dict] | None = None) -> dict:
+def _structure_source_paths(manifest: dict) -> list[str]:
+    paths = {SOURCE_MANIFEST.relative_to(ROOT).as_posix(), *_STRUCTURE_CODE_PATHS}
+    for group in ("criterion_sources", "operational_criterion_sources"):
+        for source in manifest.get(group, []):
+            rel = source.get("path")
+            if isinstance(rel, str) and rel:
+                paths.add(rel)
+    audit_source = manifest.get("instance_audit_source")
+    if isinstance(audit_source, dict):
+        rel = audit_source.get("path")
+        if isinstance(rel, str) and rel:
+            paths.add(rel)
+    return sorted(paths)
+
+
+def structure_fingerprint(manifest: dict | None = None) -> str:
+    manifest = manifest or load_manifest()
+    entries: list[dict] = []
+    for rel in _structure_source_paths(manifest):
+        path = ROOT / rel
+        if not path.is_file():
+            digest = "MISSING"
+        else:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        entries.append({"path": rel, "sha256": digest})
+    encoded = json.dumps(entries, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def instance_audit_status(
+    instance_id: str | None,
+    rows: list[dict] | None = None,
+    structure_fingerprint_value: str | None = None,
+) -> dict:
     criterion = get_instance_audit_criterion()
+    current_fp = structure_fingerprint_value or structure_fingerprint()
     if not instance_id:
         return {
             "required": True,
             "status": "INSTANCE_ID_REQUIRED",
             "criterion_id": criterion.get("criterion_id"),
+            "structure_fingerprint": current_fp,
         }
 
     rows = rows if rows is not None else read_jsonl(INSTANCE_AUDITS)
@@ -310,9 +359,26 @@ def instance_audit_status(instance_id: str | None, rows: list[dict] | None = Non
             "instance_id": instance_id,
             "criterion_id": criterion.get("criterion_id"),
             "required_output": criterion.get("required_output", []),
+            "structure_fingerprint": current_fp,
         }
 
     latest = matches[-1]
+    previous_fp = latest.get("structure_fingerprint")
+    if previous_fp != current_fp:
+        return {
+            "required": True,
+            "status": "AUDIT_STALE",
+            "instance_id": instance_id,
+            "criterion_id": criterion.get("criterion_id"),
+            "audit_id": latest.get("audit_id"),
+            "recorded_at": latest.get("recorded_at"),
+            "recovery_head": latest.get("recovery_head"),
+            "previous_structure_fingerprint": previous_fp,
+            "structure_fingerprint": current_fp,
+            "reason": "recovery structure or operating method changed after the latest completed audit",
+            "required_output": criterion.get("required_output", []),
+        }
+
     return {
         "required": False,
         "status": "AUDIT_COMPLETE",
@@ -321,6 +387,7 @@ def instance_audit_status(instance_id: str | None, rows: list[dict] | None = Non
         "audit_id": latest.get("audit_id"),
         "recorded_at": latest.get("recorded_at"),
         "recovery_head": latest.get("recovery_head"),
+        "structure_fingerprint": current_fp,
     }
 
 
@@ -333,7 +400,12 @@ def validate_instance_audit_payload(audit: dict) -> list[str]:
     return missing
 
 
-def record_instance_audit(instance_id: str, audit: dict, path: Path = INSTANCE_AUDITS) -> dict:
+def record_instance_audit(
+    instance_id: str,
+    audit: dict,
+    path: Path = INSTANCE_AUDITS,
+    structure_fingerprint_value: str | None = None,
+) -> dict:
     if not instance_id:
         raise ValueError("instance_id required")
     missing = validate_instance_audit_payload(audit)
@@ -348,6 +420,7 @@ def record_instance_audit(instance_id: str, audit: dict, path: Path = INSTANCE_A
         "recorded_at": audit.get("recorded_at") or datetime.now(timezone.utc).isoformat(),
         "status": "completed",
         "recovery_head": audit.get("recovery_head"),
+        "structure_fingerprint": structure_fingerprint_value or structure_fingerprint(),
         "objective": audit.get("objective"),
         "observed_gap": audit.get("observed_gap"),
         "why_it_limits_goal": audit.get("why_it_limits_goal"),
@@ -417,7 +490,7 @@ def recover_case(case: dict, rows: list[dict] | None = None, experience_rows: li
         "source_integrity": integrity,
         "decision_critical_unknowns": clarifications,
         "proving_sources": sorted(proving_sources),
-        "note": "Domain criteria require explicit applicability. Operational criteria are recovered as process constraints. Verified experiences remain contextual precedents. Per-instance self-audit is tracked separately and must be completed once per recovered instance.",
+        "note": "Domain criteria require explicit applicability. Operational criteria are recovered as process constraints. Verified experiences require contextual reuse anchors and are ordered by specificity. Per-instance self-audit becomes stale automatically when recovery structure or operating method changes.",
     }
 
 
@@ -466,7 +539,7 @@ def load_json(path: str) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Alberto-portable recovery safety with complete sources, contextual experience and per-instance audit tracking")
+    parser = argparse.ArgumentParser(description="Alberto-portable recovery safety with contextual experience precision and structure-aware per-instance audits")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_recover = sub.add_parser("recover")
@@ -477,6 +550,7 @@ def main() -> None:
     p_check.add_argument("--candidate", required=True)
 
     sub.add_parser("sources")
+    sub.add_parser("structure-fingerprint")
 
     p_audit_status = sub.add_parser("audit-status")
     p_audit_status.add_argument("--instance-id", required=True)
@@ -488,6 +562,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "sources":
         payload = source_integrity()
+    elif args.command == "structure-fingerprint":
+        payload = {"structure_fingerprint": structure_fingerprint()}
     elif args.command == "audit-status":
         payload = instance_audit_status(args.instance_id)
     elif args.command == "record-audit":
