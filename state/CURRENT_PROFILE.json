@@ -2,7 +2,7 @@
   "schema_version": 1,
   "profile": "alberto-portable",
   "status": "exploratory",
-  "version": "0.2",
+  "version": "0.3.1",
   "generated_at": "2026-10-03",
   "rules": {
     "inference_is_not_fact": true,
@@ -11,7 +11,12 @@
     "require_evidence_for_high_confidence_traits": true,
     "separate_personal_variability_from_project_rules": true,
     "route_methods_by_task_and_role_not_global_rank": true,
-    "alberto_build_validation_is_distinct_evidence": true
+    "alberto_build_validation_is_distinct_evidence": true,
+    "single_case_does_not_generalize": true,
+    "prediction_is_not_established_fact": true,
+    "evidence_weight_must_be_explicit": true,
+    "tradeoff_must_name_sacrificed_criterion": true,
+    "decision_critical_unknown_requires_clarification": true
   },
   "candidate_traits": [
     {
@@ -67,8 +72,18 @@
     "global_method_ranking": false,
     "alberto_validation": "separate_explicit_source"
   },
+  "causal_memory": {
+    "status": "active_v0.3",
+    "canonical_ledgers": [
+      "data/reflections.jsonl",
+      "data/criteria.jsonl",
+      "data/causal_links.jsonl",
+      "data/clarifications.jsonl"
+    ],
+    "reasoning_discipline": "core/REASONING_DISCIPLINE.md"
+  },
   "next_validation": {
-    "method": "real_decisions_and_build_outcomes",
-    "goal": "verify whether contextual routing predicts which method/role Alberto actually trusts after final build testing"
+    "method": "novel_tradeoff_cases_and_real_decisions",
+    "goal": "verify that new-case predictions keep epistemic weight explicit, avoid single-case generalization, and name both privileged and sacrificed criteria"
   }
 }
