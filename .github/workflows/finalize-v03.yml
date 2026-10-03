@@ -1,0 +1,56 @@
+name: Finalize Alberto-portable v0.3
+
+on:
+  push:
+    branches:
+      - feature/causal-memory-v0.3-impl
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct verified v0.3 payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .bootstrap/final_payload.part00
+          cat .bootstrap/final_payload.part{00..07} > /tmp/final_v03_payload.b64
+          test "$(wc -c < /tmp/final_v03_payload.b64)" = "43452"
+          echo "bf04ca753427dbed7fdac079a263836edc65c9b2db32eda6fd9ee983bb8fa3e4  /tmp/final_v03_payload.b64" | sha256sum -c -
+          base64 -d /tmp/final_v03_payload.b64 > /tmp/final_v03_payload.tgz
+          echo "44dbfa9356cb3170378a56c30fcb227079b8fc145c0160458f75b02b252a6c0d  /tmp/final_v03_payload.tgz" | sha256sum -c -
+          tar -xzf /tmp/final_v03_payload.tgz -C .
+
+      - name: Verify frozen baseline and data isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD -- eval/PREDICTIONS_V0.1_FROZEN.md
+          find data -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/data.before
+          python -m unittest discover -s tests -v
+          python tools/alberto_portable.py validate
+          git diff --check
+          find data -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/data.after
+          diff -u /tmp/data.before /tmp/data.after
+          git diff --exit-code HEAD -- eval/PREDICTIONS_V0.1_FROZEN.md
+
+      - name: Publish clean v0.3 commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .bootstrap
+          rm -f .github/workflows/finalize-v03.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Implement causal reflection memory v0.3"
+          git push origin HEAD:feature/causal-memory-v0.3-impl
