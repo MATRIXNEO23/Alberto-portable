@@ -160,6 +160,25 @@ def _case_value(case: dict, name: str):
     return _feature(case, name)
 
 
+def _has_relevance_anchor(case: dict, cfg: dict) -> bool:
+    """Return True when a criterion has enough case evidence to justify asking.
+
+    Empty-feature cases remain fail-closed because the objective is genuinely
+    indeterminate. Once a case contains concrete features, a criterion may ask
+    for missing required fields only if at least one of its own applicability
+    fields is already present. This prevents unrelated criteria from creating
+    false NEEDS_CLARIFICATION results.
+    """
+    features = case.get("features") or {}
+    if not features:
+        return True
+    names = set(cfg.get("required_true", []))
+    names.update((cfg.get("non_applicable_if") or {}).keys())
+    names.update(cfg.get("decision_critical", []))
+    names.update((cfg.get("high_risk_values") or {}).keys())
+    return any(name in features for name in names)
+
+
 def evaluate_applicability(case: dict, criterion: dict) -> dict:
     cfg = criterion.get("applicability") or {}
     missing: list[str] = []
@@ -178,6 +197,7 @@ def evaluate_applicability(case: dict, criterion: dict) -> dict:
                 "generality": criterion.get("generality", "contextual"),
             }
 
+    relevance_anchor = _has_relevance_anchor(case, cfg)
     for name in cfg.get("required_true", []):
         actual = _feature(case, name)
         if actual is None:
@@ -192,6 +212,19 @@ def evaluate_applicability(case: dict, criterion: dict) -> dict:
             "applicable": False,
             "missing": [],
             "failed_conditions": failed,
+            "provenance": criterion.get("evidence_refs", []),
+            "generality": criterion.get("generality", "contextual"),
+        }
+
+    # A concrete case that contains none of this criterion's applicability
+    # fields is evidence of non-relevance, not a reason to interrogate Alberto.
+    if missing and not relevance_anchor:
+        return {
+            "criterion_id": criterion.get("criterion_id"),
+            "status": CLEAR,
+            "applicable": False,
+            "missing": [],
+            "failed_conditions": ["no criterion-specific relevance anchor in case"],
             "provenance": criterion.get("evidence_refs", []),
             "generality": criterion.get("generality", "contextual"),
         }
