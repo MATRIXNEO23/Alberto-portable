@@ -6,7 +6,8 @@
   ],
   "operational_criterion_sources": [
     {"path": "data/performance_criteria.jsonl", "format": "jsonl"},
-    {"path": "data/delegation_criteria.jsonl", "format": "jsonl"}
+    {"path": "data/delegation_criteria.jsonl", "format": "jsonl"},
+    {"path": "data/research_reuse_criteria.jsonl", "format": "jsonl"}
   ],
   "instance_audit_source": {"path": "data/instance_audit_criterion.json", "format": "json"},
   "experience_sources": [
@@ -19,7 +20,8 @@
     "C-RESULT-QUALITY-OVER-LITERALISM-001",
     "C-INSTANCE-SELF-AUDIT-001",
     "C-DELEGATION-LITERAL-EXECUTION-001",
-    "C-OBJECTIVE-CLARIFICATION-FIRST-001"
+    "C-OBJECTIVE-CLARIFICATION-FIRST-001",
+    "C-SEARCH-REUSE-BEFORE-REINVENT-001"
   ],
   "notes": "Single canonical manifest for recovery inputs. Domain criteria are applicability-evaluated; operational criteria are recovered as process directives; instance self-audit is tracked separately. Adding a persistent source requires adding it here and passing source-integrity tests."
 }
