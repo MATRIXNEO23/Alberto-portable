@@ -1,42 +1,58 @@
-# Alberto-portable v0.3.2 — Recovery Safety
+# Alberto-portable v0.3.3 — Recovery Safety + Project Experience
 
 ## Scopo
 
 Una correzione salvata ma non recuperata nel contesto giusto non è apprendimento operativo. Questo layer rende obbligatorio un recovery decisionale prima della decisione finale, senza trasformare la similarità in verità.
 
+Inoltre, un problema già risolto non deve essere affrontato automaticamente da zero: esperienze di progetto verificate possono essere recuperate come precedenti contestuali quando le condizioni di riuso coincidono.
+
 ## Principio
 
-Il recovery è diviso in due fasi:
+Il recovery è diviso in tre passaggi:
 
 1. **candidate retrieval** — trova criteri/correzioni potenzialmente pertinenti;
-2. **applicability check** — applica solo criteri le cui condizioni esplicite coincidono con i fatti del caso.
+2. **applicability check** — applica solo criteri le cui condizioni esplicite coincidono con i fatti del caso;
+3. **experience retrieval** — recupera precedenti verificati le cui condizioni `reuse_when` coincidono con il caso corrente.
 
 La similarità può suggerire un precedente ma non può attivarlo da sola.
 
-## Fonte canonica
+## Fonti canoniche
 
-I criteri appresi restano nei ledger canonici, con provenance verso evidence reali. Gli indici futuri (FTS/SQLite/embedding) sono proiezioni ricostruibili e non possono creare relazioni canoniche.
+I criteri appresi restano nei ledger canonici, con provenance verso evidence reali:
 
-Il primo criterio strutturato è `C-SEMANTIC-ISOLATION-001`, derivato dalla correzione reale del 3 ottobre 2026 sulla contaminazione semantica persistente.
+- `data/criteria.jsonl`
+- `data/experience_criteria.jsonl`
+
+Le esperienze operative verificate restano in:
+
+- `data/project_experience.jsonl`
+
+Gli indici futuri (FTS/SQLite/embedding) sono proiezioni ricostruibili e non possono creare relazioni canoniche.
+
+## Distinzione obbligatoria
+
+`criterio` e `esperienza` non sono la stessa cosa.
+
+- **criterio**: regola/correzione generale o contestuale con condizioni di applicabilità;
+- **esperienza**: caso concreto verificato con contesto, tentativo, esito, failure mode, lezione e condizioni di riuso.
+
+Una singola esperienza non diventa automaticamente una regola universale.
 
 ## Input del caso
 
-`tools/recovery_safety.py` accetta un `case.json` con fatti espliciti:
+`tools/recovery_safety.py` accetta un `case.json` con fatti espliciti, per esempio:
 
 ```json
 {
   "case_id": "example",
+  "task_type": "repo_audit",
   "features": {
-    "experimental_component": true,
-    "can_affect_persistent_semantics": true,
-    "production_state_exists": true,
-    "project_value": "maximum",
-    "semantic_contamination_cost": "maximum"
+    "project_work_or_project_decision": true
   }
 }
 ```
 
-I valori mancanti non vengono inventati. Se una condizione decision-critical manca, il risultato è `NEEDS_CLARIFICATION`.
+I valori mancanti non vengono inventati. Se una condizione decision-critical di un criterio manca, il risultato è `NEEDS_CLARIFICATION`.
 
 ## Recovery
 
@@ -51,7 +67,21 @@ Output principali:
 - `NEEDS_CLARIFICATION`
 - `CONFLICTING` (riservato a conflitti espliciti futuri)
 
-Il pacchetto include sempre provenance e generality del criterio recuperato.
+Il pacchetto include:
+
+- `relevant_corrections`
+- `relevant_experiences`
+- provenance
+- generality
+- eventuali unknown decision-critical
+
+Le esperienze vengono restituite solo se:
+
+1. `verified=true`;
+2. hanno condizioni `reuse_when` esplicite;
+3. tali condizioni coincidono con il caso corrente.
+
+Questo consente di partire da una soluzione già verificata quando il problema è lo stesso o ha le stesse condizioni operative, senza assumere che una somiglianza narrativa sia sufficiente.
 
 ## Anti-regressione cognitiva
 
@@ -73,7 +103,7 @@ Se una correzione applicabile contraddice una scorciatoia già corretta, il cand
 
 ## Regola di sicurezza
 
-Il sistema fallisce chiuso:
+Il sistema fallisce chiuso sui dati decision-critical dei criteri:
 
 ```text
 dato decision-critical mancante -> NEEDS_CLARIFICATION
@@ -85,12 +115,23 @@ Non usa:
 similarità -> applicazione automatica del criterio
 ```
 
-## Gold test iniziale
+né:
 
-La correzione sulla contaminazione semantica deve comportarsi così:
+```text
+problema vagamente simile -> riuso automatico dell'esperienza
+```
 
-1. progetto di valore alto + rischio semantico persistente -> recupera il criterio e richiede isolamento forte;
-2. valore/costo di contaminazione sconosciuto -> `NEEDS_CLARIFICATION`;
-3. basso valore o assenza di stato persistente significativo -> non generalizza in `sandbox sempre`.
+## GPTina
 
-Questa distinzione è obbligatoria per considerare la correzione realmente appresa e recuperabile.
+GPTina mantiene il proprio metodo dedicato di continuity/recovery. Quando `target_is_gptina_and_dedicated_method_applies=true`, il layer generico di project-experience non viene iniettato automaticamente.
+
+## Formula operativa
+
+```text
+nuovo problema
+-> recupera criteri pertinenti
+-> recupera esperienze verificate con condizioni compatibili
+-> verifica che il precedente sia ancora applicabile
+-> riusa ciò che è già stato imparato
+-> esplora da zero solo ciò che resta realmente nuovo
+```
