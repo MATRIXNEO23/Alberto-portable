@@ -2,19 +2,18 @@
 
 Modello portabile e verificabile del modo di pensare e decidere di Alberto.
 
-La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La v0.2 aggiunge un motore operativo: memoria delle decisioni, outcome reali, osservazioni sui metodi e routing contestuale per scegliere **chi usare per cosa**, non chi sia "migliore" in assoluto.
+La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La v0.2 aggiunge memoria operativa di decisioni, outcome e metodi con routing contestuale. La v0.3 aggiunge memoria causale: riflessioni, criteri contestuali, chiarimenti strutturati e un grafo causale append-only.
 
 ## Principi
 
 - Nessuna inferenza diventa verità solo perché plausibile.
-- Fatti dichiarati, comportamenti osservati e inferenze restano distinti.
-- Stile e decisione restano separati.
-- Le decisioni registrano sempre il perché, le alternative e l'esito atteso.
-- Gli outcome reali non riscrivono la decisione originale: la completano come evidenza successiva.
-- I modelli/metodi vengono valutati per `task_type` e `role`, non con una graduatoria globale.
-- Le build provate da Alberto hanno una validazione separata dai test automatici.
-- Un metodo può essere valido per esplorare e inadatto per verificare o modificare file.
-- Il sistema deve poter spiegare quale evidenza ha usato per un routing.
+- Fatti dichiarati, comportamenti osservati, fatti tecnici verificati e inferenze restano distinti.
+- Una causa ignota resta `unknown`: il sistema non la inventa.
+- Le correzioni preservano la storia tramite nuovi record, `supersedes` o eventi di refutation.
+- I criteri non vengono promossi automaticamente dal solo numero di casi.
+- I metodi vengono valutati per `task_type` e `role`, non con una classifica globale.
+- La validazione di Alberto resta distinta dalla validazione tecnica.
+- Se manca un dato necessario, il sistema produce `NEEDS_CLARIFICATION` invece di completare il vuoto a intuito.
 
 ## Struttura
 
@@ -25,81 +24,97 @@ La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La
 - `core/STYLE.md`
 - `state/CURRENT_PROFILE.json`
 
-### Validazione cieca
+### Validazione
 - `eval/SCENARIOS.md`
 - `eval/PREDICTIONS_V0.1_FROZEN.md` — baseline immutabile
 - `eval/ALBERTO_RESPONSES_V0.1.md` — risposte reali successive al freeze
+- `eval/VALIDATION_STATUS_V0.1.json` — stato di validità dei casi; S1 è marcato `contaminated` e non conta come blind validation
 
-### Motore decisionale v0.2
-- `ARCHITECTURE.md` — invarianti e flusso
-- `data/decisions.jsonl` — creato al primo record
-- `data/outcomes.jsonl` — creato al primo outcome
-- `data/method_observations.jsonl` — evidenza contestuale sui metodi
-- `tools/alberto_portable.py` — CLI eseguibile
-- `tests/test_alberto_portable.py` — regressioni minime
+### Ledger e motore
+- `data/decisions.jsonl`
+- `data/outcomes.jsonl`
+- `data/method_observations.jsonl`
+- `data/reflections.jsonl` — creato al primo record
+- `data/criteria.jsonl` — creato al primo criterio
+- `data/causal_links.jsonl` — creato al primo arco/evento causale
+- `data/clarifications.jsonl` — coda append-only dei chiarimenti
+- `tools/alberto_portable.py`
+- `tests/test_alberto_portable.py`
+- `tests/test_reflections_v03.py`
 
-## Comandi
+## v0.3: stati epistemici e provenance
 
-Validazione dati:
+Gli stati principali sono `verified`, `declared_by_alberto`, `observed`, `inferred`, `conflicting`, `unknown`.
+
+`verified` non è una scorciatoia per dichiarare vera una frase libera. In v0.3 è ammesso solo per un `technical_ref_fact` strutturale e canonico derivato direttamente da una singola ref risolvibile, per esempio:
+
+```text
+path evidence/METHOD_CASES_2026-10-03.md exists
+commit <sha> exists in repository
+ledger id D-001 exists
+```
+
+Motivazioni, intenzioni, preferenze o stati soggettivi attribuiti ad Alberto devono restare `inferred`/`unknown`/`conflicting`, oppure diventare `declared_by_alberto` solo con una dichiarazione verbatim reale.
+
+## Chiarimenti append-only
+
+Una clarification mantiene lo stesso `clarification_id`, mentre ogni snapshot ha un `clarification_event_id` univoco. Le sole transizioni valide sono:
+
+```text
+open -> answered
+open -> cancelled
+open -> obsolete
+```
+
+Gli stati terminali non vengono riaperti. Lo stato corrente è l'ultimo evento valido; lo storico resta nel ledger.
+
+## Comandi principali
+
+Validazione:
 
 ```bash
 python tools/alberto_portable.py validate
 ```
 
-Registrare una decisione:
+Decisioni/outcome/metodi:
 
 ```bash
-python tools/alberto_portable.py record-decision \
-  --decision-id D-001 \
-  --task-type repo_audit \
-  --context "Audit di una modifica critica" \
-  --alternatives "metodo-a|metodo-b" \
-  --choice "confronto incrociato" \
-  --reasons "ridurre allucinazioni|proteggere componenti a cascata" \
-  --risk high \
-  --no-reversible \
-  --expected-outcome "nessuna regressione"
+python tools/alberto_portable.py record-decision ...
+python tools/alberto_portable.py record-outcome ...
+python tools/alberto_portable.py record-method ...
+python tools/alberto_portable.py route ...
 ```
 
-Registrare l'esito e la prova reale di Alberto:
+Memoria causale:
 
 ```bash
-python tools/alberto_portable.py record-outcome \
-  --outcome-id O-001 \
-  --decision-id D-001 \
-  --technical-result passed \
-  --tests-passed \
-  --alberto-validation accepted \
-  --alberto-notes "provata la build finale: funziona"
+python tools/alberto_portable.py record-reflection ...
+python tools/alberto_portable.py flag-reflection-needed ...
+python tools/alberto_portable.py confirm-causality ...
+python tools/alberto_portable.py link-cause ...
+python tools/alberto_portable.py refute-link ...
+python tools/alberto_portable.py trace-chain --from R-...
 ```
 
-Registrare un metodo nel ruolo specifico:
+Criteri:
 
 ```bash
-python tools/alberto_portable.py record-method \
-  --observation-id M-001 \
-  --method qwen \
-  --task-type repo_audit \
-  --role audit \
-  --verified-result wrong \
-  --hallucination \
-  --build-result not_applicable \
-  --alberto-validation not_tested
+python tools/alberto_portable.py upsert-criterion ...
+python tools/alberto_portable.py amend-criterion ...
+python tools/alberto_portable.py activate-criterion ...
+python tools/alberto_portable.py evaluate-criterion ...
+python tools/alberto_portable.py current-criterion ...
 ```
 
-Chiedere il routing per un nuovo compito:
+Chiarimenti:
 
 ```bash
-python tools/alberto_portable.py route \
-  --task-type repo_audit \
-  --role verify \
-  --risk high \
-  --no-reversible \
-  --require-canonical
+python tools/alberto_portable.py answer-clarification ...
+python tools/alberto_portable.py cancel-clarification ...
+python tools/alberto_portable.py obsolete-clarification ...
+python tools/alberto_portable.py list-clarifications ...
 ```
-
-L'output è una shortlist basata sull'evidenza pertinente. Non è una classifica universale.
 
 ## Regola di sviluppo
 
-Prima si conserva l'esperienza grezza, poi si derivano le preferenze. Se il codice di routing fosse sbagliato o venisse riscritto, i ledger append-only devono restare sufficienti a ricostruire perché Alberto aveva imparato a usare un metodo in un certo ruolo.
+Prima si conserva l'esperienza grezza e verificabile, poi si derivano criteri e routing. Le proiezioni e le metriche derivate devono poter essere ricostruite dai ledger; la storia non va riscritta per adattarla alla conclusione corrente.
