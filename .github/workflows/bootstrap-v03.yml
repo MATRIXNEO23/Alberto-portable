@@ -1,0 +1,27 @@
+name: Inspect v0.3 bootstrap
+
+on:
+  push:
+    branches:
+      - 'feature/causal-memory-v0.3-impl'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode bootstrap payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .bootstrap/v03.part* | base64 -d | gzip -d > /tmp/v03.payload
+          echo "bytes=$(wc -c < /tmp/v03.payload)"
+          echo "sha256=$(sha256sum /tmp/v03.payload | awk '{print $1}')"
+          file /tmp/v03.payload
+          echo '--- first 20 lines ---'
+          head -n 20 /tmp/v03.payload
+          echo '--- last 20 lines ---'
+          tail -n 20 /tmp/v03.payload
