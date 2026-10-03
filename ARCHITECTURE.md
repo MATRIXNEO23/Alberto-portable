@@ -1,4 +1,4 @@
-# Alberto-portable v0.3 — Architettura operativa
+# Alberto-portable v0.3.1 — Architettura operativa
 
 ## Scopo
 
@@ -16,6 +16,10 @@ Alberto-portable conserva non solo decisioni e risultati, ma anche il percorso c
 8. Le metriche dei criteri sono derivate dai riferimenti reali e non diventano memoria canonica.
 9. La validazione tecnica e quella di Alberto restano separate.
 10. `PREDICTIONS_V0.1_FROZEN.md` non viene riscritto retroattivamente.
+11. Un singolo caso non viene promosso a regola generale senza evidenza convergente.
+12. Una previsione su un caso nuovo resta distinta da un fatto stabilito e deve esporre confidenza e condizioni di falsificazione.
+13. Nei trade-off devono essere visibili sia il criterio privilegiato sia quello sacrificato o subordinato.
+14. Il peso epistemico della fonte deve restare esplicito; presenza della fonte e forza della prova non sono la stessa cosa.
 
 ## Ledger
 
@@ -57,6 +61,23 @@ I contatori di osservazioni, contesti e stabilità temporale sono calcolati a qu
 `data/clarifications.jsonl` è una history append-only. `clarification_id` identifica la domanda; `clarification_event_id` identifica lo snapshot immutabile. Le sole transizioni valide sono `open→answered`, `open→cancelled`, `open→obsolete`.
 
 `NEEDS_CLARIFICATION` usa exit code 3 e non scrive sul ledger target prima del blocco. La coda dei chiarimenti rimane invece auditabile.
+
+## Disciplina di ragionamento v0.3.1
+
+`core/REASONING_DISCIPLINE.md` è la policy operativa per i casi nuovi. Non aggiunge una nuova “personalità” ad Alberto-portable: impone trasparenza sul percorso inferenziale.
+
+Per un caso con trade-off reale, il sistema deve rendere distinguibili:
+- fatti del caso;
+- base epistemica delle informazioni su Alberto;
+- criteri in conflitto;
+- criterio privilegiato;
+- criterio sacrificato o subordinato;
+- previsione risultante;
+- confidenza;
+- condizione che potrebbe ribaltare la previsione;
+- eventuale informazione decision-critical mancante.
+
+Un singolo caso può sostenere un'ipotesi contestuale ma non una regola universale. Quando il sistema applica criteri noti a un caso nuovo, l'esito è una previsione ragionata, non un fatto su Alberto.
 
 ## Causalità
 
