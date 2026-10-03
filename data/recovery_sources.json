@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "criterion_sources": [
+    {"path": "data/criteria.jsonl", "format": "jsonl"},
+    {"path": "data/experience_criteria.jsonl", "format": "jsonl"},
+    {"path": "data/performance_criteria.jsonl", "format": "jsonl"},
+    {"path": "data/delegation_criteria.jsonl", "format": "jsonl"},
+    {"path": "data/instance_audit_criterion.json", "format": "json"}
+  ],
+  "experience_sources": [
+    {"path": "data/project_experience.jsonl", "format": "jsonl"}
+  ],
+  "required_criterion_ids": [
+    "C-CRITICAL-PATH-FIRST-001",
+    "C-SOLUTION-NOT-IDENTITY-001",
+    "C-PROJECT-EXPERIENCE-ACCUMULATION-001",
+    "C-RESULT-QUALITY-OVER-LITERALISM-001",
+    "C-INSTANCE-SELF-AUDIT-001",
+    "C-DELEGATION-LITERAL-EXECUTION-001",
+    "C-OBJECTIVE-CLARIFICATION-FIRST-001"
+  ],
+  "notes": "Single canonical manifest for recovery inputs. Adding a new persistent criterion ledger requires adding it here and passing source-integrity tests."
+}
