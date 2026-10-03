@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CRITERIA = ROOT / "data" / "criteria.jsonl"
+EXPERIENCE_CRITERIA = ROOT / "data" / "experience_criteria.jsonl"
+PROJECT_EXPERIENCE = ROOT / "data" / "project_experience.jsonl"
 
 CLEAR = "CLEAR"
 CORRECTION_APPLIES = "CORRECTION_APPLIES"
@@ -28,6 +30,10 @@ def read_jsonl(path: Path) -> list[dict]:
     return rows
 
 
+def all_criteria() -> list[dict]:
+    return read_jsonl(CRITERIA) + read_jsonl(EXPERIENCE_CRITERIA)
+
+
 def current_criteria(rows: list[dict]) -> list[dict]:
     superseded = {r.get("supersedes") for r in rows if r.get("supersedes")}
     return [r for r in rows if r.get("criterion_id") not in superseded]
@@ -35,6 +41,12 @@ def current_criteria(rows: list[dict]) -> list[dict]:
 
 def _feature(case: dict, name: str):
     return (case.get("features") or {}).get(name, None)
+
+
+def _case_value(case: dict, name: str):
+    if name in case:
+        return case.get(name)
+    return _feature(case, name)
 
 
 def evaluate_applicability(case: dict, criterion: dict) -> dict:
@@ -108,11 +120,42 @@ def evaluate_applicability(case: dict, criterion: dict) -> dict:
     }
 
 
-def recover_case(case: dict, rows: list[dict] | None = None) -> dict:
-    rows = current_criteria(rows if rows is not None else read_jsonl(CRITERIA))
+def recover_experiences(case: dict, rows: list[dict] | None = None) -> list[dict]:
+    # GPTina uses its dedicated continuity/recovery method; do not automatically
+    # inject the generic project-experience layer into that path.
+    if _feature(case, "target_is_gptina_and_dedicated_method_applies") is True:
+        return []
+
+    rows = rows if rows is not None else read_jsonl(PROJECT_EXPERIENCE)
+    matches: list[dict] = []
+    for row in rows:
+        if row.get("verified") is not True:
+            continue
+        reuse_when = row.get("reuse_when") or {}
+        if not reuse_when:
+            continue
+        if not all(_case_value(case, key) == expected for key, expected in reuse_when.items()):
+            continue
+        matches.append({
+            "experience_id": row.get("experience_id"),
+            "project": row.get("project"),
+            "task_type": row.get("task_type"),
+            "outcome": row.get("outcome"),
+            "failure_mode": row.get("failure_mode"),
+            "lesson": row.get("lesson"),
+            "reuse_when": reuse_when,
+            "provenance": row.get("evidence_refs", []),
+            "generality": row.get("generality", "contextual"),
+        })
+    return matches
+
+
+def recover_case(case: dict, rows: list[dict] | None = None, experience_rows: list[dict] | None = None) -> dict:
+    rows = current_criteria(rows if rows is not None else all_criteria())
     matches = [evaluate_applicability(case, row) for row in rows]
     clarifications = sorted({m for row in matches for m in row.get("missing", [])})
     applicable = [row for row in matches if row.get("status") == CORRECTION_APPLIES]
+    experiences = recover_experiences(case, rows=experience_rows)
 
     if clarifications:
         status = NEEDS_CLARIFICATION
@@ -121,13 +164,17 @@ def recover_case(case: dict, rows: list[dict] | None = None) -> dict:
     else:
         status = CLEAR
 
+    proving_sources = {p for row in matches for p in row.get("provenance", [])}
+    proving_sources.update(p for row in experiences for p in row.get("provenance", []))
+
     return {
         "status": status,
         "case_id": case.get("case_id"),
         "relevant_corrections": matches,
+        "relevant_experiences": experiences,
         "decision_critical_unknowns": clarifications,
-        "proving_sources": sorted({p for row in matches for p in row.get("provenance", [])}),
-        "note": "Similarity may nominate candidates, but applicability is decided only by explicit case features and criterion conditions.",
+        "proving_sources": sorted(proving_sources),
+        "note": "Criteria require explicit applicability. Verified experiences are contextual precedents only: they may inform the next move but do not become universal rules automatically.",
     }
 
 
@@ -142,7 +189,7 @@ def anti_regression_check(case: dict, candidate: dict, rows: list[dict] | None =
         if row.get("status") == CORRECTION_APPLIES
     }
 
-    criteria_rows = current_criteria(rows if rows is not None else read_jsonl(CRITERIA))
+    criteria_rows = current_criteria(rows if rows is not None else all_criteria())
     for criterion in criteria_rows:
         if criterion.get("criterion_id") not in active_ids:
             continue
@@ -169,7 +216,7 @@ def load_json(path: str) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Alberto-portable v0.3.2 recovery safety")
+    parser = argparse.ArgumentParser(description="Alberto-portable recovery safety with contextual project experience")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_recover = sub.add_parser("recover")
