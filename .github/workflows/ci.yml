@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'alberto-portable/**'
+      - 'feature/**'
 
 jobs:
   test:
@@ -18,4 +19,4 @@ jobs:
       - name: Validate ledgers
         run: python tools/alberto_portable.py validate
       - name: Run tests
-        run: python -m unittest -v tests/test_alberto_portable.py
+        run: python -m unittest discover -s tests -v
