@@ -47,7 +47,8 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf .bootstrap
-          rm -f .github/workflows/finalize-v03.yml
+          git checkout HEAD -- .github/workflows/ci.yml .github/workflows/finalize-v03.yml
+          chmod +x tools/alberto_portable.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
