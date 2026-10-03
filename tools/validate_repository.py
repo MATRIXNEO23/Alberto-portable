@@ -107,9 +107,11 @@ def main() -> int:
     errors = list(activation_errors)
     errors.extend(run_legacy_validator(criteria_rows, activations))
 
+    recovery_fp = None
     try:
-        from recovery_safety import source_integrity
+        from recovery_safety import source_integrity, structure_fingerprint
         integrity = source_integrity()
+        recovery_fp = structure_fingerprint()
         if integrity.get("status") != "PASS":
             errors.extend(integrity.get("errors", []))
     except Exception as exc:
@@ -125,6 +127,7 @@ def main() -> int:
         "legacy_validator": "PASS_WITH_APPEND_ONLY_ACTIVATION_PROVENANCE",
         "activation_events": len(activations),
         "recovery_source_integrity": "PASS",
+        "structure_fingerprint": recovery_fp,
     }, ensure_ascii=False, sort_keys=True))
     return 0
 
