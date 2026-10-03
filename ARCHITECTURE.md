@@ -1,119 +1,80 @@
-# Alberto-portable v0.2 — Architettura operativa
+# Alberto-portable v0.3 — Architettura operativa
 
 ## Scopo
 
-Alberto-portable non deve limitarsi a descrivere Alberto. Deve conservare decisioni, motivazioni, alternative, risultati e verifiche reali; confrontare metodi diversi per tipo di compito; imparare quali ruoli assegnare a chi; e mantenere distinta la validazione finale di Alberto dalle metriche automatiche.
+Alberto-portable conserva non solo decisioni e risultati, ma anche il percorso causale che collega evento, interpretazione, cambiamento di criterio, decisione, outcome e riflessione successiva. Deve poter distinguere ciò che è verificato, ciò che Alberto ha dichiarato, ciò che è osservato e ciò che è soltanto inferito.
 
 ## Invarianti
 
 1. Nessuna classifica globale dei modelli/metodi.
-2. La scelta è sempre contestuale al task: dominio, rischio, reversibilità, bisogno di fonte canonica, costo/tempo e ruolo richiesto.
-3. Le decisioni sono append-only: una decisione successiva può supersedere la precedente, non cancellarla.
-4. Una decisione registra sempre il perché, le alternative e l'esito atteso.
-5. L'outcome reale è separato dalla decisione originale.
-6. La validazione di Alberto è una fonte distinta: non viene trasformata in un semplice test automatico.
-7. Un metodo può essere adatto a un ruolo e inadatto a un altro sullo stesso task.
-8. Le inferenze sul carattere restano separate dalle regole operative dei progetti.
-9. Le evidenze negative restano visibili: errori, allucinazioni e build bocciate non vengono cancellati.
-10. Nessun aggiornamento deve riscrivere le previsioni congelate o le risposte storiche.
+2. Decisioni, outcome, riflessioni e archi causali preservano la storia; le correzioni sono append-only.
+3. Una causa ignota non viene completata a intuito.
+4. `declared_by_alberto` richiede parole reali attribuibili ad Alberto.
+5. `verified` è riservato a fatti strutturali direttamente verificabili dalla provenance; non verifica interpretazioni personali.
+6. Una fonte reale non prova automaticamente qualunque claim collegato ad essa.
+7. I conflitti restano rappresentabili senza scelta automatica di una spiegazione.
+8. Le metriche dei criteri sono derivate dai riferimenti reali e non diventano memoria canonica.
+9. La validazione tecnica e quella di Alberto restano separate.
+10. `PREDICTIONS_V0.1_FROZEN.md` non viene riscritto retroattivamente.
 
-## Strati
+## Ledger
 
-### 1. Decision ledger
+### Decisioni e outcome
 
-`data/decisions.jsonl`
+`data/decisions.jsonl` e `data/outcomes.jsonl` mantengono la semantica v0.2: scelta, alternative, ragioni, esito atteso e risultato reale sono separati.
 
-Ogni riga è una decisione autonoma con:
-- `decision_id`
-- data/contesto/task
-- alternative considerate
-- scelta
-- ragioni
-- evidenze disponibili
-- rischio e reversibilità
-- risultato atteso
-- eventuale decisione superseded
+### Osservazioni sui metodi
 
-### 2. Outcome ledger
+`data/method_observations.jsonl` conserva evidenza contestuale per task e ruolo. Il router usa questa evidenza senza trasformarla in una reputazione globale del metodo.
 
-`data/outcomes.jsonl`
+### Reflections
 
-Collega una decisione al risultato osservato senza modificare il record originale. Include:
-- controlli tecnici
-- regressioni
-- artifact/build verificata
-- note sull'esito
-- validazione finale di Alberto, se avvenuta
+`data/reflections.jsonl` registra:
+- contesto e trigger;
+- interpretazione e stato epistemico;
+- eventuale cambiamento di criterio;
+- causalità `declared`, `evidenced`, `multiple_candidates` o `unknown`;
+- condizioni, eccezioni e implicazioni;
+- provenance;
+- `supersedes` quando una riflessione successiva corregge la precedente.
 
-### 3. Method observations
+Un `verified` v0.3 usa `claim_kind=technical_ref_fact` e un `verified_fact` canonico derivato da una ref risolvibile. Questo evita di confondere “la fonte esiste” con “la fonte dimostra una frase arbitraria”.
 
-`data/method_observations.jsonl`
+### Criteria
 
-Non contiene un voto globale. Ogni osservazione è contestuale:
-- metodo/modello
-- `task_type`
-- `role` (`explore`, `audit`, `implement`, `review`, `verify`, ecc.)
-- accesso o meno alla fonte canonica
-- risultato verificato
-- allucinazioni/errori
-- costo/tempo se noti
-- eventuale esito della build
-- eventuale validazione di Alberto
+`data/criteria.jsonl` separa:
+- `strength`: `hypothesis`, `candidate`, `contextual_active`, `contested`, `deprecated`;
+- `epistemic_basis`: `declared_by_alberto`, `observed`, `inferred`, `mixed`.
 
-### 4. Router contestuale
+I contatori di osservazioni, contesti e stabilità temporale sono calcolati a query-time da `evidence_refs`; non sono fatti canonici memorizzati.
 
-`tools/alberto_portable.py route`
+### Causal graph
 
-Il router non chiede "chi è migliore?". Chiede:
-- che compito è?
-- quale ruolo serve?
-- quanto costa sbagliare?
-- il task è reversibile?
-- serve accesso alla fonte canonica?
-- quali metodi hanno evidenza verificata per questa combinazione?
+`data/causal_links.jsonl` conserva archi espliciti e refutation. `trace-chain` attraversa solo relazioni realmente collegate alla radice richiesta, più relazioni strutturali verificabili come decisione→outcome e le catene `supersedes` delle riflessioni. I link refutati restano nello storico ma sono esclusi dal cammino attivo.
 
-Restituisce una shortlist motivata e le prove usate. Se l'evidenza è insufficiente, lo dichiara.
+### Clarifications
 
-### 5. Validazione di Alberto
+`data/clarifications.jsonl` è una history append-only. `clarification_id` identifica la domanda; `clarification_event_id` identifica lo snapshot immutabile. Le sole transizioni valide sono `open→answered`, `open→cancelled`, `open→obsolete`.
 
-La validazione finale di Alberto non viene inferita. Può essere:
-- `accepted`
-- `accepted_with_notes`
-- `rejected`
-- `not_tested`
+`NEEDS_CLARIFICATION` usa exit code 3 e non scrive sul ledger target prima del blocco. La coda dei chiarimenti rimane invece auditabile.
 
-Per build/prodotti operativi, `accepted` di Alberto vale come evidenza reale sull'idoneità del metodo per quel tipo di compito, ma non trasforma quel metodo nel "migliore" in assoluto.
+## Causalità
 
-## Flusso
+La catena obiettivo è:
 
-1. `record-decision` — registra cosa si sta decidendo e perché.
-2. Esecuzione del lavoro con uno o più metodi.
-3. `record-method` — registra come si sono comportati i metodi nei ruoli usati.
-4. `record-outcome` — registra risultato tecnico e prova reale di Alberto.
-5. `route` — su un nuovo task consulta solo osservazioni pertinenti e propone ruoli/metodi in base all'esperienza accumulata.
+```text
+evento -> interpretazione -> riflessione -> criterio -> decisione -> outcome -> nuova riflessione
+```
 
-## Criterio di apprendimento
-
-Il sistema deve preferire evidenza specifica a generalizzazioni:
-
-`stesso task_type + stesso role` > `stesso task_type` > evidenza generica.
-
-Non usa mai una media globale come criterio unico.
-
-## Distinzione persona / progetto
-
-Per inferenze sul carattere umano, variabilità emotiva e contesto personale sono ammessi e devono mantenere confidenza/temporalità.
-
-Per progetti operativi, regole e eccezioni devono essere esplicite, verificabili e stabili finché non vengono deliberatamente cambiate.
+Ogni relazione deve mantenere provenance e stato epistemico. Se esistono spiegazioni incompatibili, vengono conservate entrambe; non viene scelta automaticamente quella “più plausibile”.
 
 ## Recovery
 
-La repository deve permettere di ricostruire:
-- quali decisioni furono prese;
-- perché furono prese;
-- quali metodi furono usati;
-- cosa produssero realmente;
-- cosa Alberto accettò o rifiutò;
-- quale evidenza giustifica oggi una scelta di metodo per un nuovo task.
-
-Se il router viene cancellato, i ledger JSONL restano leggibili come fonte canonica; il codice è ricostruibile, l'esperienza no.
+Una ricostruzione deve poter recuperare:
+- cosa si pensava prima;
+- cosa è cambiato;
+- perché è cambiato, se la causa è nota;
+- cosa resta incerto;
+- quali decisioni ne sono derivate;
+- cosa è successo realmente;
+- quale versione è corrente senza cancellare quella storica.
