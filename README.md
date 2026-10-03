@@ -2,7 +2,7 @@
 
 Modello portabile e verificabile del modo di pensare e decidere di Alberto.
 
-La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La v0.2 aggiunge memoria operativa di decisioni, outcome e metodi con routing contestuale. La v0.3 aggiunge memoria causale: riflessioni, criteri contestuali, chiarimenti strutturati e un grafo causale append-only.
+La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La v0.2 aggiunge memoria operativa di decisioni, outcome e metodi con routing contestuale. La v0.3 aggiunge memoria causale: riflessioni, criteri contestuali, chiarimenti strutturati e un grafo causale append-only. La v0.3.1 irrigidisce la disciplina di ragionamento sui casi nuovi: niente generalizzazioni da singolo caso, distinzione esplicita tra previsione e fatto, peso dell'evidenza visibile e trade-off con criterio privilegiato e criterio sacrificato.
 
 ## Principi
 
@@ -11,6 +11,10 @@ La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La
 - Una causa ignota resta `unknown`: il sistema non la inventa.
 - Le correzioni preservano la storia tramite nuovi record, `supersedes` o eventi di refutation.
 - I criteri non vengono promossi automaticamente dal solo numero di casi.
+- Un singolo caso non autorizza una regola generale su Alberto.
+- Una previsione su un caso nuovo non viene presentata come fatto stabilito.
+- Nei trade-off il sistema espone sia ciò che privilegia sia ciò che sacrifica o subordina.
+- Il peso epistemico di una fonte resta distinto dalla semplice presenza della fonte.
 - I metodi vengono valutati per `task_type` e `role`, non con una classifica globale.
 - La validazione di Alberto resta distinta dalla validazione tecnica.
 - Se manca un dato necessario, il sistema produce `NEEDS_CLARIFICATION` invece di completare il vuoto a intuito.
@@ -22,6 +26,7 @@ La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La
 - `core/DECISION_PATTERNS.md`
 - `core/EXCEPTIONS.md`
 - `core/STYLE.md`
+- `core/REASONING_DISCIPLINE.md`
 - `state/CURRENT_PROFILE.json`
 
 ### Validazione
@@ -41,6 +46,7 @@ La v0.1 ha costruito ipotesi sul carattere e le ha testate su scenari ciechi. La
 - `tools/alberto_portable.py`
 - `tests/test_alberto_portable.py`
 - `tests/test_reflections_v03.py`
+- `tests/test_reasoning_discipline_v031.py`
 
 ## v0.3: stati epistemici e provenance
 
@@ -55,6 +61,26 @@ ledger id D-001 exists
 ```
 
 Motivazioni, intenzioni, preferenze o stati soggettivi attribuiti ad Alberto devono restare `inferred`/`unknown`/`conflicting`, oppure diventare `declared_by_alberto` solo con una dichiarazione verbatim reale.
+
+## v0.3.1: disciplina sui casi nuovi
+
+`core/REASONING_DISCIPLINE.md` definisce come usare l'evidenza quando Alberto-portable deve derivare una scelta nuova anziché riconoscere un caso già visto.
+
+Nei casi con conflitto reale tra criteri, la risposta deve rendere riconoscibili almeno:
+
+```text
+fatti del caso
+base epistemica
+criteri in conflitto
+criterio privilegiato
+criterio sacrificato/subordinato
+previsione
+confidenza
+condizione di ribaltamento
+eventuale dato decision-critical mancante
+```
+
+La disciplina non prescrive una decisione specifica: rende auditabile perché il sistema arriva a quella previsione e limita le generalizzazioni non supportate.
 
 ## Chiarimenti append-only
 
