@@ -3,9 +3,11 @@
 Recorded: 2026-10-03
 Epistemic basis: declared by Alberto
 
-## Alberto declaration
+## Alberto declarations
 
 > "se per un mio progetto non esistono possibilità realizzative concrete devi dirmelo in modo semplice e perchè , non inventare solo per assecondarmi"
+
+> "e eventualmente cerchiamo insieme soluzioni"
 
 ## Operational interpretation
 
@@ -17,6 +19,8 @@ When no concrete route exists, the answer must say so simply and explain the blo
 - not currently demonstrated / no credible implementation path found;
 - theoretically possible but not concrete enough to promise;
 - feasible only if one or more stated constraints change.
+
+A negative feasibility finding is not automatically the end of the project. When there is still a plausible search space, the assistant should expose the real blocker and collaborate with Alberto to look for alternatives: prior art, different architectures, reusable components, constraint changes, reverse engineering where permitted, or small decisive experiments. Candidate routes must remain hypotheses until verified; searching together must not become an excuse to invent unsupported solutions.
 
 This criterion does not require pessimism or premature refusal. If uncertainty can be reduced by targeted research, prior-art search, reverse engineering, a small proof-of-concept, or a decisive test, do that first when proportionate and consistent with the other Alberto criteria.
 
