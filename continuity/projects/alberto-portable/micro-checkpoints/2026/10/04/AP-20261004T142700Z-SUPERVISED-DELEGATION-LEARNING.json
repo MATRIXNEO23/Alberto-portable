@@ -1,0 +1,61 @@
+{
+  "branch": "main",
+  "captured_at": "2026-10-04T14:27:00+00:00",
+  "checkpoint_id": "AP-20261004T142700Z-SUPERVISED-DELEGATION-LEARNING",
+  "completed": [
+    "Extended the existing delegation criterion instead of creating a duplicate criterion.",
+    "Encoded staged supervision gates PLAN -> PROPOSE -> REVIEW -> APPLY -> TEST -> REVIEW -> CONTINUE.",
+    "Recorded the concrete blind bulk delegation failure as reusable verified experience."
+  ],
+  "constraints": [
+    "Preserve the rest of Alberto-portable continuity; this correction adds to existing criteria rather than replacing them.",
+    "Avoid unnecessary micro-steps: gates exist only where they reduce material risk or uncertainty.",
+    "Do not treat a passed test or executor report as automatic authorization to integrate."
+  ],
+  "corrections": [
+    "Do not use mega-prompt -> wait -> final audit as the default complex-work method.",
+    "Do not follow Work's framing when it drifts from the approved direction.",
+    "Do not let Work autonomously replan after a rejected proposal."
+  ],
+  "decisions": [
+    "For complex or risky delegation, prompt precision does not replace active supervision.",
+    "The supervisor sets stop points and asks Work for plan/design/candidate code or diff/evidence before authorizing material application.",
+    "Alberto may relay messages but is not responsible for deciding gates or evidence needs.",
+    "If Work is rejected or deviates, Work stops and returns to the supervisor; the supervisor replans from the last valid point.",
+    "Material ambiguity about Alberto's intent is escalated to Alberto instead of being invented or delegated to Work."
+  ],
+  "head": "fb7ae4db16d3c618966ef040944252deab219590",
+  "next_action": "On the next complex delegated task, recover this method, define the first bounded gate, require Work to stop and return the requested intermediate artifact, review it, and only then authorize the next stage.",
+  "objective": "Persist the corrected supervision method learned from the FILUM/Work delegation failure so future instances do not rely on mega-prompts and late final review.",
+  "open_loops": [
+    "Validate the staged supervision method on the next complex Work task.",
+    "If practice reveals that candidate-code review is too coarse or too fine, adjust gate granularity without reverting to blind bulk delegation."
+  ],
+  "project_id": "alberto-portable",
+  "provenance_refs": [
+    "commit:2cace5318850ed551f82454da27098abb22d869c",
+    "commit:f71159affdd83ccbba2bb62afa1c574b9307840f",
+    "commit:fb7ae4db16d3c618966ef040944252deab219590",
+    "evidence/ALBERTO_CRITERION_2026-10-03_DELEGATION_PROMPTS_LITERAL_EXECUTION.md"
+  ],
+  "regression_risks": [
+    "Turning staged supervision into bureaucratic micro-management with unnecessary gates.",
+    "Forgetting that the supervisor must ask for the intermediate evidence rather than making Alberto decide what to request.",
+    "Treating a rejected Work proposal as a baseline instead of returning to the last valid point."
+  ],
+  "repository": "MATRIXNEO23/Alberto-portable",
+  "schema_version": 1,
+  "touched_components": [
+    "evidence/ALBERTO_CRITERION_2026-10-03_DELEGATION_PROMPTS_LITERAL_EXECUTION.md",
+    "data/delegation_criteria.jsonl",
+    "data/project_experience.jsonl"
+  ],
+  "unverified": [
+    "The corrected supervision method has not yet been exercised end-to-end on a new complex Work delegation."
+  ],
+  "verified": [
+    "main at fb7ae4db16d3c618966ef040944252deab219590 contains the updated delegation criterion evidence.",
+    "data/delegation_criteria.jsonl now includes the staged supervision contract.",
+    "data/project_experience.jsonl contains E-2026-10-04-SUPERVISOR-MEGAPROMPT-BLIND-DELEGATION."
+  ]
+}
