@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "AP-20261004T053100Z-PROJECT-CONTINUITY-V1",
+  "project_id": "alberto-portable",
+  "captured_at": "2026-10-04T05:31:00+00:00",
+  "repository": "MATRIXNEO23/Alberto-portable",
+  "branch": "main",
+  "head": "420e566f0496c3fcdf1efebbb89609dd7004913b",
+  "objective": "Preserve project-specific operational continuity with immutable micro-checkpoints instead of relying on volatile instance memory.",
+  "completed": [
+    "Added project-partitioned continuity documentation and criterion.",
+    "Added project_continuity.py with checkpoint, recover, and audit commands.",
+    "Added regression tests for project isolation, immutability, ordering, provenance, stale pointers, and dedicated recovery.",
+    "Registered the operational criterion in the canonical recovery manifest.",
+    "Promoted the verified implementation to main."
+  ],
+  "verified": [
+    "main at 420e566f0496c3fcdf1efebbb89609dd7004913b contains the project continuity source registration.",
+    "GitHub Actions run 37180103698 completed successfully on main.",
+    "The project continuity unit tests pass in CI."
+  ],
+  "unverified": [
+    "A future fresh assistant instance has not yet performed a real cross-instance recovery using a committed project checkpoint."
+  ],
+  "decisions": [
+    "Partition continuity by project_id under continuity/projects/<project_id>/.",
+    "Keep micro-checkpoints immutable and LIVE_CONTEXT.json as a derived pointer only.",
+    "Treat repository and project canonical sources as authoritative over checkpoint state.",
+    "Use project checkpoints only at material transitions, not every message."
+  ],
+  "corrections": [
+    "Equal captured_at timestamps for different checkpoint IDs are rejected to avoid ambiguous ordering.",
+    "A stale LIVE_CONTEXT pointer is an audit failure, not a warning.",
+    "Provenance entries must be non-empty strings.",
+    "Known GPTina dedicated-recovery identifiers are blocked from the generic checkpoint layer."
+  ],
+  "constraints": [
+    "Do not use volatile instance memory as the project source of truth.",
+    "Do not mix checkpoint state across projects.",
+    "Do not let generic project continuity replace GPTina dedicated recovery.",
+    "Verify live canonical project state before substantive work."
+  ],
+  "touched_components": [
+    "continuity/projects/README.md",
+    "data/project_continuity_criterion.json",
+    "data/recovery_sources.json",
+    "evidence/ALBERTO_CRITERION_2026-10-04_PROJECT_PARTITIONED_MICRO_CHECKPOINTS.md",
+    "tools/project_continuity.py",
+    "tests/test_project_continuity.py"
+  ],
+  "open_loops": [
+    "Observe the first real recovery from a new assistant instance and record any usability gap.",
+    "If more projects gain dedicated recovery methods, replace the small hard-coded dedicated-project set with a canonical registry."
+  ],
+  "next_action": "On the next substantive project task, identify its project_id, recover only that project's checkpoint if present, verify the project's live canonical source, reconcile differences, then continue.",
+  "regression_risks": [
+    "Concurrent writers to the same project may still create repository-level merge conflicts even though checkpoint ordering is validated.",
+    "A new dedicated-recovery project alias is not blocked until it is added to the dedicated project policy."
+  ],
+  "provenance_refs": [
+    "commit:420e566f0496c3fcdf1efebbb89609dd7004913b",
+    "ci:37180103698",
+    "evidence/ALBERTO_CRITERION_2026-10-04_PROJECT_PARTITIONED_MICRO_CHECKPOINTS.md"
+  ]
+}
