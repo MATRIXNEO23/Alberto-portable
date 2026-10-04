@@ -1,0 +1,67 @@
+{
+  "branch": "main",
+  "captured_at": "2026-10-04T14:32:00+00:00",
+  "checkpoint_id": "AP-20261004T143200Z-SUPERVISED-DELEGATION-VALIDATED",
+  "completed": [
+    "Extended C-DELEGATION-LITERAL-EXECUTION-001 with staged supervision rather than creating a duplicate criterion.",
+    "Recorded E-2026-10-04-SUPERVISOR-MEGAPROMPT-BLIND-DELEGATION.",
+    "Created a project micro-checkpoint for the correction.",
+    "Detected and repaired a malformed JSONL edit introduced while persisting the criterion."
+  ],
+  "constraints": [
+    "Use only as many gates as materially useful; avoid bureaucratic micro-stepping.",
+    "Maintain all previously recovered Alberto-portable directives cumulatively unless explicitly superseded or conflicting.",
+    "Passing tests does not itself authorize integration."
+  ],
+  "corrections": [
+    "Replace mega-prompt -> wait -> final audit with PLAN -> PROPOSE -> REVIEW -> APPLY -> TEST -> REVIEW -> CONTINUE when complexity/risk warrants it.",
+    "Do not follow Work into a changed framing or direction merely because implementation has advanced.",
+    "Do not authorize Work to self-replan after rejection.",
+    "Validate persistence edits themselves; the first JSONL update was malformed and CI correctly rejected it."
+  ],
+  "decisions": [
+    "Complex or risky delegated work is not handed over as one end-to-end execution block merely because the prompt is precise.",
+    "The supervisor defines bounded gates and explicitly asks Work for the intermediate material needed to review the next decision.",
+    "Plan/design and, where material, candidate code or diff are reviewed before application.",
+    "Alberto is the transport between supervisor and Work, not the person responsible for inventing supervision stops or evidence requests.",
+    "If Work deviates or a proposal is rejected, Work stops; the supervisor returns to the last valid point and replans before any further execution.",
+    "If a material uncertainty concerns Alberto's intended result or preference, stop and ask Alberto; neither supervisor nor Work invents it."
+  ],
+  "head": "f08f5a73a0c19f5f8dd7a65960368866031a6ccd",
+  "next_action": "For the next complex delegated implementation, recover this checkpoint, establish the first bounded planning/proposal gate, tell Work exactly where to stop and what to return, review it, and only then authorize application or the next stage.",
+  "objective": "Persist and validate the supervision lesson from the FILUM/Work failure: staged review gates, supervisor-owned interruptions, replanning after rejection, and escalation of material ambiguity to Alberto.",
+  "open_loops": [
+    "Exercise the method on the next complex Work task and evaluate whether the chosen gate granularity prevents wrong-direction work without unnecessary delay."
+  ],
+  "project_id": "alberto-portable",
+  "provenance_refs": [
+    "commit:2cace5318850ed551f82454da27098abb22d869c",
+    "commit:f71159affdd83ccbba2bb62afa1c574b9307840f",
+    "commit:fb7ae4db16d3c618966ef040944252deab219590",
+    "commit:f08f5a73a0c19f5f8dd7a65960368866031a6ccd",
+    "ci:37209554060",
+    "evidence/ALBERTO_CRITERION_2026-10-03_DELEGATION_PROMPTS_LITERAL_EXECUTION.md"
+  ],
+  "regression_risks": [
+    "Falling back to a kilometer-long end-to-end prompt and trusting Work until the end.",
+    "Creating too many low-value gates and turning supervision into bureaucracy.",
+    "Letting Work choose a replacement direction after rejection instead of returning to the supervisor.",
+    "Failing to ask Alberto when an unresolved choice changes the intended result."
+  ],
+  "repository": "MATRIXNEO23/Alberto-portable",
+  "schema_version": 1,
+  "touched_components": [
+    "evidence/ALBERTO_CRITERION_2026-10-03_DELEGATION_PROMPTS_LITERAL_EXECUTION.md",
+    "data/delegation_criteria.jsonl",
+    "data/project_experience.jsonl",
+    "continuity/projects/alberto-portable/"
+  ],
+  "unverified": [
+    "The staged supervision method still requires end-to-end validation on the next complex Work delegation."
+  ],
+  "verified": [
+    "main at f08f5a73a0c19f5f8dd7a65960368866031a6ccd contains the corrected delegation criterion and experience.",
+    "Alberto Portable CI run 37209554060 completed successfully.",
+    "Repository validation and tests passed after repairing delegation_criteria.jsonl."
+  ]
+}
