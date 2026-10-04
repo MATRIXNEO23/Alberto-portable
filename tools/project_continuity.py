@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTINUITY_ROOT = ROOT / "continuity" / "projects"
 
 PROJECT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
+DEDICATED_RECOVERY_PROJECT_IDS = frozenset({"gptina", "scodinzolina-conntinuity"})
 REQUIRED_FIELDS = (
     "schema_version",
     "checkpoint_id",
@@ -126,6 +127,8 @@ def validate_checkpoint(payload: dict[str, Any], expected_project: str | None = 
     for field in LIST_FIELDS:
         if not isinstance(payload.get(field), list):
             raise ContinuityError(f"{field} must be a list")
+    if any(not isinstance(ref, str) or not ref.strip() for ref in payload["provenance_refs"]):
+        raise ContinuityError("provenance_refs entries must be non-empty strings")
     if payload["verified"] and payload["provenance_refs"] == []:
         raise ContinuityError("verified facts require at least one provenance_refs entry")
     dedicated = payload.get("dedicated_recovery")
@@ -174,23 +177,32 @@ def _resolve_pointer_checkpoint(project_id: str, pointer: dict[str, Any], root: 
 def write_checkpoint(payload: dict[str, Any], root: Path = CONTINUITY_ROOT) -> dict[str, Any]:
     checkpoint = validate_checkpoint(dict(payload))
     project_id = checkpoint["project_id"]
-    if checkpoint.get("dedicated_recovery") is True:
-        raise ContinuityError("generic project micro-checkpoint disabled because dedicated_recovery=true")
+    if project_id in DEDICATED_RECOVERY_PROJECT_IDS or checkpoint.get("dedicated_recovery") is True:
+        raise ContinuityError("generic project micro-checkpoint disabled for dedicated-recovery project")
     project_dir = _project_dir(project_id, root)
     rel = _safe_checkpoint_relpath(checkpoint["captured_at"], checkpoint["checkpoint_id"])
     path = project_dir / rel
     path.parent.mkdir(parents=True, exist_ok=True)
+
     if path.exists():
         existing = validate_checkpoint(_read_json(path), expected_project=project_id)
         if _canonical_json(existing) != _canonical_json(checkpoint):
             raise ContinuityError(f"immutable checkpoint already exists with different content: {path}")
     else:
         path.write_text(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
     existing_pointer = _load_pointer(project_id, root)
     if existing_pointer is not None:
         _, existing_checkpoint = _resolve_pointer_checkpoint(project_id, existing_pointer, root)
-        if _parse_time(checkpoint["captured_at"]) < _parse_time(existing_checkpoint["captured_at"]):
+        incoming_time = _parse_time(checkpoint["captured_at"])
+        current_time = _parse_time(existing_checkpoint["captured_at"])
+        if incoming_time < current_time:
             raise ContinuityError("refusing to move LIVE_CONTEXT backwards to an older checkpoint")
+        if incoming_time == current_time and checkpoint["checkpoint_id"] != existing_checkpoint["checkpoint_id"]:
+            raise ContinuityError("refusing ambiguous LIVE_CONTEXT update: different checkpoint at same captured_at")
+        if checkpoint["checkpoint_id"] == existing_checkpoint["checkpoint_id"]:
+            return {"checkpoint": checkpoint, "pointer": existing_pointer, "path": rel.as_posix(), "idempotent": True}
+
     pointer = {
         "schema_version": 1,
         "project_id": project_id,
@@ -203,11 +215,18 @@ def write_checkpoint(payload: dict[str, Any], root: Path = CONTINUITY_ROOT) -> d
     pointer_path = _pointer_path(project_id, root)
     pointer_path.parent.mkdir(parents=True, exist_ok=True)
     pointer_path.write_text(json.dumps(pointer, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    return {"checkpoint": checkpoint, "pointer": pointer, "path": rel.as_posix()}
+    return {"checkpoint": checkpoint, "pointer": pointer, "path": rel.as_posix(), "idempotent": False}
 
 
 def recover_project(project_id: str, root: Path = CONTINUITY_ROOT) -> dict[str, Any]:
     project_id = _validate_project_id(project_id)
+    if project_id in DEDICATED_RECOVERY_PROJECT_IDS:
+        return {
+            "status": "DEDICATED_RECOVERY_REQUIRED",
+            "project_id": project_id,
+            "checkpoint": None,
+            "rule": "use the project's dedicated continuity/recovery method",
+        }
     pointer = _load_pointer(project_id, root)
     if pointer is None:
         return {"status": "NO_CHECKPOINT", "project_id": project_id, "checkpoint": None}
@@ -224,6 +243,15 @@ def recover_project(project_id: str, root: Path = CONTINUITY_ROOT) -> dict[str, 
 
 def audit_project(project_id: str, root: Path = CONTINUITY_ROOT) -> dict[str, Any]:
     project_id = _validate_project_id(project_id)
+    if project_id in DEDICATED_RECOVERY_PROJECT_IDS:
+        return {
+            "status": "DEDICATED_RECOVERY_REQUIRED",
+            "project_id": project_id,
+            "checkpoint_count": 0,
+            "pointer_present": False,
+            "errors": [],
+            "warnings": [],
+        }
     project_dir = _project_dir(project_id, root)
     errors: list[str] = []
     warnings: list[str] = []
@@ -248,11 +276,14 @@ def audit_project(project_id: str, root: Path = CONTINUITY_ROOT) -> dict[str, An
             pointer = _load_pointer(project_id, root)
             pointer_path_resolved, pointer_checkpoint = _resolve_pointer_checkpoint(project_id, pointer, root)
             if checkpoints:
-                newest = max(checkpoints, key=lambda item: _parse_time(item[1]["captured_at"]))
-                if _parse_time(pointer_checkpoint["captured_at"]) != _parse_time(newest[1]["captured_at"]):
-                    warnings.append("LIVE_CONTEXT does not point to the newest captured_at checkpoint")
-                if pointer_path_resolved != newest[0].resolve():
-                    warnings.append("LIVE_CONTEXT path differs from newest checkpoint path")
+                newest_time = max(_parse_time(item[1]["captured_at"]) for item in checkpoints)
+                newest = [item for item in checkpoints if _parse_time(item[1]["captured_at"]) == newest_time]
+                if len(newest) > 1:
+                    errors.append("multiple checkpoints share newest captured_at; LIVE_CONTEXT ordering is ambiguous")
+                elif pointer_path_resolved != newest[0][0].resolve():
+                    errors.append("LIVE_CONTEXT does not point to the newest checkpoint")
+                if _parse_time(pointer_checkpoint["captured_at"]) != newest_time:
+                    errors.append("LIVE_CONTEXT points to a stale captured_at")
         except ContinuityError as exc:
             errors.append(str(exc))
     elif checkpoints:
