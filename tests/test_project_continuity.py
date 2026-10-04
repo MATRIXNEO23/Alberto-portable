@@ -50,12 +50,8 @@ class ProjectContinuityTests(unittest.TestCase):
     def test_projects_are_partitioned_and_recover_independently(self):
         write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00"), self.root)
         write_checkpoint(checkpoint("matrix", "MATRIX-001", "2026-10-04T06:05:00+00:00"), self.root)
-        filum = recover_project("filum", self.root)
-        matrix = recover_project("matrix", self.root)
-        self.assertEqual(filum["checkpoint"]["checkpoint_id"], "FILUM-001")
-        self.assertEqual(matrix["checkpoint"]["checkpoint_id"], "MATRIX-001")
-        self.assertEqual(filum["checkpoint"]["project_id"], "filum")
-        self.assertEqual(matrix["checkpoint"]["project_id"], "matrix")
+        self.assertEqual(recover_project("filum", self.root)["checkpoint"]["checkpoint_id"], "FILUM-001")
+        self.assertEqual(recover_project("matrix", self.root)["checkpoint"]["checkpoint_id"], "MATRIX-001")
 
     def test_checkpoint_is_immutable(self):
         original = checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00")
@@ -65,11 +61,23 @@ class ProjectContinuityTests(unittest.TestCase):
         with self.assertRaises(ContinuityError):
             write_checkpoint(changed, self.root)
 
+    def test_idempotent_rewrite_of_current_checkpoint_is_allowed(self):
+        payload = checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00")
+        first = write_checkpoint(payload, self.root)
+        second = write_checkpoint(payload, self.root)
+        self.assertFalse(first["idempotent"])
+        self.assertTrue(second["idempotent"])
+        self.assertEqual(first["pointer"]["checkpoint_id"], second["pointer"]["checkpoint_id"])
+
     def test_live_pointer_cannot_move_backwards(self):
         write_checkpoint(checkpoint("filum", "FILUM-002", "2026-10-04T07:00:00+00:00"), self.root)
         with self.assertRaises(ContinuityError):
             write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00"), self.root)
-        self.assertEqual(recover_project("filum", self.root)["checkpoint"]["checkpoint_id"], "FILUM-002")
+
+    def test_equal_timestamp_different_checkpoint_is_rejected(self):
+        write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T07:00:00+00:00"), self.root)
+        with self.assertRaises(ContinuityError):
+            write_checkpoint(checkpoint("filum", "FILUM-002", "2026-10-04T07:00:00+00:00"), self.root)
 
     def test_checksum_tamper_is_detected(self):
         result = write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00"), self.root)
@@ -86,10 +94,17 @@ class ProjectContinuityTests(unittest.TestCase):
         with self.assertRaises(ContinuityError):
             write_checkpoint(payload, self.root)
 
-    def test_dedicated_recovery_blocks_generic_checkpoint(self):
-        payload = checkpoint("gptina", "GPTINA-001", "2026-10-04T06:00:00+00:00", dedicated_recovery=True)
+    def test_provenance_entries_must_be_non_empty_strings(self):
+        payload = checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00")
+        payload["provenance_refs"] = [""]
         with self.assertRaises(ContinuityError):
             write_checkpoint(payload, self.root)
+
+    def test_known_dedicated_project_is_blocked_without_payload_hint(self):
+        payload = checkpoint("gptina", "GPTINA-001", "2026-10-04T06:00:00+00:00")
+        with self.assertRaises(ContinuityError):
+            write_checkpoint(payload, self.root)
+        self.assertEqual(recover_project("gptina", self.root)["status"], "DEDICATED_RECOVERY_REQUIRED")
 
     def test_audit_detects_cross_project_record(self):
         result = write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00"), self.root)
@@ -100,6 +115,16 @@ class ProjectContinuityTests(unittest.TestCase):
         audit = audit_project("filum", self.root)
         self.assertEqual(audit["status"], "FAIL")
         self.assertTrue(any("does not match requested project" in e for e in audit["errors"]))
+
+    def test_audit_treats_stale_pointer_as_failure(self):
+        write_checkpoint(checkpoint("filum", "FILUM-001", "2026-10-04T06:00:00+00:00"), self.root)
+        pointer_path = self.root / "filum" / "LIVE_CONTEXT.json"
+        first_pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+        write_checkpoint(checkpoint("filum", "FILUM-002", "2026-10-04T07:00:00+00:00"), self.root)
+        pointer_path.write_text(json.dumps(first_pointer), encoding="utf-8")
+        audit = audit_project("filum", self.root)
+        self.assertEqual(audit["status"], "FAIL")
+        self.assertTrue(any("newest" in e or "stale" in e for e in audit["errors"]))
 
     def test_recover_without_checkpoint_is_explicit(self):
         self.assertEqual(recover_project("filum", self.root)["status"], "NO_CHECKPOINT")
